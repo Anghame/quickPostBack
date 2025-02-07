@@ -7,19 +7,20 @@ const postSchema = new mongoose.Schema({
   },
   author: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Référence le modèle User
+    ref: 'User',
     required: true,
   },
   likes: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Like', // Référence le modèle Like (optionnel)
+      ref: 'Like',
+      
     },
   ],
   comments: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Comment', // Référence le modèle Comment (optionnel)
+      ref: 'Comment',
     },
   ],
   createdAt: {

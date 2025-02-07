@@ -30,26 +30,26 @@ exports.createPost = async (req, res) => {
     }
   };
   
-  // Récupérer tous les posts avec les informations de l'utilisateur
+  //Récupérer tous les posts avec les informations de l'utilisateur
   exports.getAllPosts = async (req, res) => {
     try {
       const posts = await Post.find()
         .populate({
           path: 'author',
-          select: 'username profileImage gender', // Ajoutez 'gender' ici
+          select: 'username gender firstName lastName', // Champs de l'auteur du post
         })
         .populate({
           path: 'likes',
           populate: {
-            path: 'user',
-            select: 'username profileImage gender', // Ajoutez 'gender' ici si nécessaire
+            path: 'user', // Peupler l'utilisateur dans les likes
+            select: 'username gender firstName lastName', // Champs de l'utilisateur
           },
         })
         .populate({
           path: 'comments',
           populate: {
-            path: 'author',
-            select: 'username profileImage gender', // Ajoutez 'gender' ici si nécessaire
+            path: 'author', // Peupler l'auteur dans les commentaires
+            select: 'username gender firstName lastName', // Champs de l'auteur
           },
         })
         .sort({ createdAt: -1 }); // Trier par date de création (du plus récent au plus ancien)
@@ -62,31 +62,44 @@ exports.createPost = async (req, res) => {
 
 // Liker un post
 exports.likePost = async (req, res) => {
-  const { userId, postId } = req.body;
-  try {
-    const existingLike = await Like.findOne({ user: userId, post: postId });
-    if (existingLike) {
-      return res.status(400).json({ message: 'Vous avez déjà liké ce post' });
+    const { userId, postId } = req.body;
+    try {
+      const existingLike = await Like.findOne({ user: userId, post: postId });
+      if (existingLike) {
+        return res.status(400).json({ message: 'Vous avez déjà liké ce post' });
+      }
+  
+      const like = new Like({ user: userId, post: postId });
+      await like.save();
+  
+      // Mettre à jour le tableau `likes` dans le post
+      await Post.findByIdAndUpdate(postId, { $push: { likes: like._id } });
+  
+      // Mettre à jour le tableau `likedPosts` dans l'utilisateur
+      await User.findByIdAndUpdate(userId, { $push: { likedPosts: like._id } });
+  
+      res.status(201).json(like);
+    } catch (error) {
+      res.status(500).json({ message: 'Erreur lors du like', error });
     }
-
-    const like = new Like({ user: userId, post: postId });
-    await like.save();
-    await User.findByIdAndUpdate(userId, { $push: { likedPosts: like._id } });
-    res.status(201).json(like);
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors du like' });
-  }
-};
-
+  };
 // Ajouter un commentaire
 exports.addComment = async (req, res) => {
-  const { postId, text, authorId } = req.body;
-  try {
-    const comment = new Comment({ text, author: authorId, post: postId });
-    await comment.save();
-    await User.findByIdAndUpdate(authorId, { $push: { comments: comment._id } });
-    res.status(201).json(comment);
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de l\'ajout du commentaire' });
-  }
-};
+    const { postId, text, authorId } = req.body;
+    try {
+      const comment = new Comment({ text, author: authorId, post: postId });
+      await comment.save();
+  
+      // Mettre à jour le tableau `comments` dans le post
+      await Post.findByIdAndUpdate(postId, { $push: { comments: comment._id } });
+  
+      // Mettre à jour le tableau `comments` dans l'utilisateur
+      await User.findByIdAndUpdate(authorId, { $push: { comments: comment._id } });
+  
+      res.status(201).json(comment);
+    } catch (error) {
+      res.status(500).json({ message: 'Erreur lors de l\'ajout du commentaire', error });
+    }
+  };
+
+  
